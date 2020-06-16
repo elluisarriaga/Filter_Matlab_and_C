@@ -1,0 +1,98 @@
+#include <stdio.h>
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define FILTER_ORDER 3
+
+typedef struct Filter{
+	float a;
+	float b;
+} Filter;
+
+typedef struct Signal{
+	float val;
+	float time;
+	float out;
+	
+}signal;
+
+float ButterFilter(Filter *filter, signal *signal) {
+    float output = 0;
+    for (int i = 0; i < FILTER_ORDER + 1; ++i) {
+        //general filter formulation
+        output = output + (signal[i].val * filter[i].b) - (signal[i].out * filter[i].a);
+    }
+    return output;
+}
+
+
+void ReadFilter(Filter *filter, char *FilterFileName){
+	FILE *fp = fopen(FilterFileName, "r");
+	    if (fp == NULL) {
+        printf("Can't find the file\n");
+		exit(1);
+    }
+    printf("File found\n");
+      int i=0;
+    char *buf = (char *) malloc(256);
+		while (fgets(buf, 256, fp)) {
+        sscanf(buf, "%f,%f", &filter[i].a, &filter[i].b);
+	//	 printf("%f, %f\n",filter[i].a,filter[i].b);
+			  i++;
+    }
+   
+    free(buf);
+    fclose(fp);
+	
+}
+
+void ReadSignal(char *ReadFileName,signal *signal,Filter *filter){
+	FILE *fw= fopen("output.csv", "w");
+	FILE *fp = fopen(ReadFileName, "r");
+    if (fp == NULL) {
+        printf("Can't find the file");
+		exit(1);
+    }
+    printf("File found\n");
+	    for (int j = 0; j < FILTER_ORDER + 1; ++j) {
+        signal[j].val = 0;
+        signal[j].time = 0;
+        signal[j].out = 0;
+    }
+	/*memset(val,0,FILTER_ORDER + 1);
+	memset(time,0,FILTER_ORDER + 1);
+	memset(out,0,FILTER_ORDER + 1);*/
+	char *buf = (char *) malloc(256);
+    while (fgets(buf, 256, fp)) {
+        sscanf(buf, "%f,%f", &signal[0].val, &signal[0].time);
+        signal[0].out = ButterFilter(filter, signal);
+        fprintf(fw, "%f,%f\n", signal[0].out, signal[0].time);
+		
+		        for (int i = FILTER_ORDER - 1; i >= 0; i--) {
+            signal[i + 1].val = signal[i].val;
+            signal[i + 1].time = signal[i].time;
+            signal[i + 1].out = signal[i].out;
+		//	printf("%i\n",i);
+		//	printf("%f, %f\n", signal[i].time, signal[i].out);
+			if ((signal[i].time>=0.300)&&(signal[i].time<=0.320)){
+				printf("%f, %f\n", signal[i].time, signal[i].out);
+			}
+        }
+        signal[0].out = 0;
+	}
+	    free(buf);
+    //Close read and write file
+    fclose(fp);
+    fclose(fw);
+}
+
+int main(){
+    char *ReadFileName = "noisy_signal.csv";
+    char *FilterFileName = "butter.csv";
+    Filter filter[FILTER_ORDER + 1];
+    signal signal[FILTER_ORDER + 1];
+    ReadFilter(filter, FilterFileName);
+    ReadSignal(ReadFileName, signal, filter);
+    return 0;	
+}
