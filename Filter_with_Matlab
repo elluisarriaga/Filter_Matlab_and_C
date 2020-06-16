@@ -1,0 +1,71 @@
+%% Filter in Matlab 
+clc
+clear all
+freq=1000; %Frequency
+n_freq=freq/2; %nyquist frequency
+ripple=3; 
+att= 40; %attenuation in dB
+fc=40; %cutoff frequency
+fs=200; %stop initial frequency
+[n,wn]=buttord(fc/n_freq,fs/n_freq,ripple,att);
+[b,a]=butter(n,wn);
+figure('Name','freqz','NumberTitle','off');
+freqz(b,a,512,1000)
+
+amplitud=rand*10;
+%omega=20;
+omega=2*pi*40*rand;
+%omegard=10000;
+omegard=2*pi*(rand*800+200); %It will have at least a noise with a value of 200, where the stop band starts
+k=zeros(501,1);
+i=1;
+signal=zeros(501,1);
+rdo=zeros(501,1);
+for t=0:0.001:.5
+    signal(i)= amplitud*sin(omega*t); %Take into account that the phase = 0
+    rdo(i)=amplitud*sin(omegard*t); %noise of the signal
+    k(i)= signal(i)+rdo(i); 
+    i=i+1;
+end
+
+signal_filter= filter(b,a,k);
+figure('Name','Signal Filtering','NumberTitle','off');
+t=0:0.001:.5;
+subplot(3,1,1);
+plot(t,signal)
+grid on
+title('w/o noise')
+xlabel('time')
+subplot(3,1,2);
+plot(t,k)
+grid on
+title('w noise')
+xlabel('time')
+subplot(3,1,3)
+plot(t,signal_filter)
+grid on
+title('filtered signal in MATLAB')
+xlabel('time')
+t=t';
+but= [a', b'];
+noisy_signal=[k,t];
+fprintf("Order to write in the C programm (#define FILTER_ORDER) = %i\n ",n)
+csvwrite("butter.csv",but)
+csvwrite("noisy_signal.csv",noisy_signal)
+
+%% Filter in C
+signal_in_c= csvread("output.csv").';
+p=size(signal_in_c);
+a=1;
+cc=zeros(p(1,2),1);
+tc=zeros(p(1,2),1);
+for j=0:1:p(1,2)-1
+    cc(a)=signal_in_c(1,a);
+    tc(a)=signal_in_c(2,a);
+    a=a+1;
+end
+figure('Name','Signal Filtering in C','NumberTitle','off');
+plot(tc,cc)
+grid on
+title('filtered signal in C')
+xlabel('time')
